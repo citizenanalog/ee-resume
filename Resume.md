@@ -1,43 +1,40 @@
-# Matt | Senior Electronics Test Technician / RF Engineer
+# Matt | Electronics Test & System Integration
 
 **Location:** Seattle, WA  
-**Focus:** Quantum hardware test, RF/microwave measurement, production test automation
+**Focus:** Manufacturing test development, quantum system deployment & commissioning, RF/electronics measurement
 
 ---
 
 ## Summary
-Experienced electronics test engineer specializing in RF/microwave systems, precision instrumentation, and quantum computing hardware. Currently leading hiring and test procedures for quantum system controllers at IonQ. Strong background in VNA measurements, oscilloscope analysis, CAN bus, and embedded test development.
+Electronics test engineer on the Test and System Integration team at IonQ. Responsible for manufacturing test development for electronic controls hardware used in quantum systems, as well as deployment and commissioning of those systems. Also participates in technical interviews and hiring support. Strong background in RF/microwave measurement, precision instrumentation, and production test automation.
 
 ## Experience
 
-### IonQ — Senior Electronics Test Technician / Hiring Lead
+### IonQ — Test & System Integration
 *Quantum Computing | Seattle, WA (previously Boulder, CO area)*  
-**Focus areas:**
-- QCS System Controller: assembly, power systems, FPGA, PMT, Ethernet validation
-- RF test procedures, S-parameter measurements (S11), EOM characterization
-- Production test development and troubleshooting with R&S, Keysight, and Tektronix instruments
-- Leading technical interviews and resume screening for electronics test roles
 
-### RF / Electronics Test Expertise
-- Vector Network Analyzers: FieldFox N9917A, R&S ZNH18 / ZN series, PicoVNA
-- Oscilloscopes: R&S RTB2004, Tektronix TTR506A and higher-end models
-- Signal generators, phase noise measurement, cable/connector torque and loss characterization
-- CAN bus (Dow-Key switches, Arduino-based tools)
-- Calibration (ECal, mechanical, R&S ZN-ZE118)
-- Low-noise and triboelectric cable considerations for precision RF
+**Core responsibilities:**
+- Manufacturing test development for electronic controls hardware in quantum systems
+- Deployment and commissioning of quantum systems
+- RF and electronics validation (S-parameters, power, FPGA, PMT, Ethernet interfaces, etc.)
+- Production test procedures and troubleshooting using R&S, Keysight, and Tektronix instruments
+- Participation in technical interviews and evaluation of candidates for test roles
+
+**Technical focus areas:**
+- QCS System Controller and related electronic controls hardware
+- RF test procedures, S-parameter measurements (S11), EOM characterization
+- Calibration (ECal, mechanical), cable/connector care, low-noise RF practices
+- CAN bus, embedded interfaces, and production test tooling
 
 ## Skills
 - **RF/Microwave:** S-parameters, VNA calibration, phase noise, 6 GHz+ measurements, connector care
-- **Test Automation & Embedded:** Arduino, Raspberry Pi, CAN, serial interfaces, production test scripts
-- **Instruments:** Keysight, Rohde & Schwarz, Tektronix, LeCroy familiarity
-- **Other:** Linux (Arch/Debian), Git, 3D printing for fixtures (Prusa + PETG-GF), home lab networking (pfSense, WireGuard)
-
-## Education & Background
-Technical background in electronics test and RF systems. Continuous learning in quantum hardware and advanced measurement techniques.
+- **Test Development & Integration:** Manufacturing test procedures, system bring-up, commissioning
+- **Instruments:** Keysight, Rohde & Schwarz, Tektronix, FieldFox, PicoVNA
+- **Other:** Linux, Git, Arduino/RPi tooling, 3D printing for fixtures (Prusa + PETG-GF)
 
 ## Interests
-Precision measurement, quantum computing hardware, DIY embedded systems, outdoor activities (kayaking, hiking), 3D printing, cooking, genealogy.
+Precision measurement, quantum hardware, DIY embedded systems, outdoor activities (kayaking, hiking), 3D printing, cooking, genealogy.
 
 ---
 
-*This is a living document. Update with full details, dates, and quantifiable achievements as needed.*
+*Living document — update with dates, quantifiable impact, and additional detail as needed.*

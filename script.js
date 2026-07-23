@@ -150,35 +150,40 @@
     // Here we use a clean text rendering of the MD.
 
     const resumeText = `
-Matt  ·  Senior Electronics Test Technician / RF Engineer
-Seattle, WA  ·  Quantum hardware test & RF measurement
+Matt  ·  Electronics Test & System Integration
+Seattle, WA  ·  Quantum systems test, deployment & commissioning
 
 ────────────────────────────────────────────────
 
 SUMMARY
-  Experienced electronics test engineer focused on RF/microwave
-  systems, precision instrumentation, and quantum computing
-  hardware. Leading test procedures and hiring for quantum
-  system controllers at IonQ.
+  Electronics test engineer on the Test and System Integration
+  team at IonQ. Responsible for manufacturing test development
+  for electronic controls hardware in quantum systems, plus
+  deployment and commissioning of those systems. Also supports
+  technical interviews. Strong RF/microwave and production
+  test background.
 
 EXPERIENCE
-  IonQ — Senior Electronics Test / Hiring Lead
-  • QCS System Controller: assembly, power, FPGA, PMT, Ethernet
-  • RF test procedures, S-parameter (S11) & EOM characterization
-  • Production test development with R&S, Keysight, Tektronix
-  • Technical interviewing and resume screening for test roles
+  IonQ — Test & System Integration
+  • Manufacturing test development for electronic controls
+    hardware used in quantum systems
+  • Deployment and commissioning of quantum systems
+  • RF/electronics validation (S-params, power, FPGA, PMT,
+    Ethernet interfaces)
+  • Production test procedures & troubleshooting (R&S,
+    Keysight, Tektronix)
+  • Technical interview participation and candidate evaluation
 
-  RF / Electronics Test
-  • VNAs: FieldFox N9917A, R&S ZNH18 / ZN series, PicoVNA
-  • Scopes: R&S RTB2004, Tektronix TTR506A+
-  • Phase noise, cable torque/loss, ECal / mechanical cal
-  • CAN bus (Dow-Key, Arduino), low-noise RF cabling
+  Technical focus
+  • QCS System Controller and related controls hardware
+  • S-parameter measurements, EOM characterization, calibration
+  • Low-noise RF practices, cable/connector care, CAN bus
 
 SKILLS
-  RF/Microwave  ·  S-params, VNA cal, phase noise, 6 GHz+
-  Test & Embedded  ·  Arduino, RPi, CAN, production scripts
-  Instruments  ·  Keysight, Rohde & Schwarz, Tektronix
-  Other  ·  Linux, Git, 3D printing (Prusa + PETG-GF), networking
+  RF/Microwave     ·  S-params, VNA cal, phase noise, 6 GHz+
+  Test & Integration ·  Manufacturing test, system bring-up
+  Instruments      ·  Keysight, R&S, Tektronix, FieldFox
+  Other            ·  Linux, Git, Arduino/RPi, 3D printing
 
 INTERESTS
   Precision measurement, quantum hardware, DIY embedded,
