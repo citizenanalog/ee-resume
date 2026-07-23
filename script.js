@@ -3,7 +3,7 @@
 
   // ========== STATE ==========
   const state = {
-    screen: "boot", // boot | menu | resume | contact | fun | gameover
+    screen: "boot", // boot | menu | resume | contact | fun | visual
     menuIndex: 0,
     typing: false,
     resumeContent: "",
@@ -96,7 +96,7 @@
   const menuItems = [
     { key: "1", label: "View Resume / CV", action: showResume },
     { key: "2", label: "Contact", action: showContact },
-    { key: "3", label: "Fun (vim motions)", action: showFun },
+    { key: "3", label: "Fun (particle field)", action: showFun },
   ];
 
   function showMenu() {
@@ -210,66 +210,106 @@ INTERESTS
     println("[b] back to menu");
   }
 
-  // ========== FUN / GAME ==========
-  // Simple Snake with hjkl controls + classic WASD/arrows as bonus
+  // ========== FUN / VISUAL ==========
+  // Pure visual particle field controlled by vim motions
   function showFun() {
     state.screen = "fun";
     clear();
     promptEl.style.display = "none";
     cursorEl.style.display = "none";
 
-    println("─── FUN  ·  vim snake ────────────────────────");
+    println("─── FUN  ·  particle field ───────────────────");
     println();
-    println("  Controls:  h j k l   (or arrows / wasd)");
-    println("  Goal:      eat the *  ·  don't hit yourself");
-    println("  Quit:      q  or  esc");
+    println("  A pure visual playground.");
+    println("  Move the attractor with vim motions.");
     println();
-    println("  Press any key to start...");
+    println("  h j k l   (or arrows)  →  move the focus");
+    println("  space                 →  toggle attract / repel");
+    println("  r                     →  reset particles");
+    println("  q / esc / b           →  back to menu");
+    println();
+    println("  Press any key to begin...");
   }
 
-  // Game implementation
-  function startSnake() {
-    state.screen = "game";
+  function startField() {
+    state.screen = "visual";
     clear();
 
-    const W = 28;
-    const H = 16;
-    let snake = [{ x: 8, y: 8 }, { x: 7, y: 8 }, { x: 6, y: 8 }];
-    let dir = { x: 1, y: 0 };
-    let nextDir = { x: 1, y: 0 };
-    let food = { x: 15, y: 8 };
-    let score = 0;
-    let alive = true;
-    let tick = null;
+    const W = 42;
+    const H = 18;
+    const NUM = 55;
 
-    function placeFood() {
-      let ok = false;
-      while (!ok) {
-        food = {
-          x: Math.floor(Math.random() * W),
-          y: Math.floor(Math.random() * H),
-        };
-        ok = !snake.some((s) => s.x === food.x && s.y === food.y);
-      }
+    // Attractor
+    let ax = W / 2;
+    let ay = H / 2;
+    let avx = 0;
+    let avy = 0;
+    const A_ACCEL = 0.55;
+    const A_FRICTION = 0.82;
+    const A_MAX_SPEED = 1.8;
+
+    // Force mode: +1 attract, -1 repel
+    let forceSign = 1;
+
+    // Particles
+    const particles = [];
+    const glyphs = ["·", ".", ":", "*", "o", "O", "+", "×"];
+
+    function spawnParticle() {
+      return {
+        x: Math.random() * W,
+        y: Math.random() * H,
+        vx: (Math.random() - 0.5) * 1.2,
+        vy: (Math.random() - 0.5) * 1.2,
+        life: 40 + Math.random() * 80,
+        g: glyphs[Math.floor(Math.random() * glyphs.length)],
+      };
     }
 
+    for (let i = 0; i < NUM; i++) particles.push(spawnParticle());
+
+    // Key state for continuous movement
+    const keys = { h: false, j: false, k: false, l: false };
+
+    let tick = null;
+
     function draw() {
+      // Build empty grid
+      const grid = Array.from({ length: H }, () => Array(W).fill(" "));
+
+      // Place particles (last one wins if overlap)
+      for (const p of particles) {
+        const px = Math.floor(p.x);
+        const py = Math.floor(p.y);
+        if (px >= 0 && px < W && py >= 0 && py < H) {
+          // Choose glyph by speed for a bit of life
+          const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+          let ch = p.g;
+          if (speed > 1.4) ch = "@";
+          else if (speed > 0.9) ch = "O";
+          else if (speed > 0.5) ch = "o";
+          else if (speed > 0.25) ch = "*";
+          grid[py][px] = ch;
+        }
+      }
+
+      // Place attractor (always on top)
+      const tax = Math.floor(ax);
+      const tay = Math.floor(ay);
+      if (tax >= 0 && tax < W && tay >= 0 && tay < H) {
+        grid[tay][tax] = forceSign > 0 ? "◉" : "◎";
+      }
+
+      // Render
       let buf = "";
-      buf += `  SCORE: ${score}   (h j k l to move · q to quit)\n`;
+      const mode = forceSign > 0 ? "ATTRACT" : "REPEL ";
+      buf += `  ${mode}   hjkl move focus · space flip · r reset · q quit\n`;
       buf += "  ┌" + "─".repeat(W) + "┐\n";
       for (let y = 0; y < H; y++) {
-        buf += "  │";
-        for (let x = 0; x < W; x++) {
-          const onSnake = snake.some((s) => s.x === x && s.y === y);
-          const head = snake[0].x === x && snake[0].y === y;
-          if (head) buf += "@";
-          else if (onSnake) buf += "o";
-          else if (food.x === x && food.y === y) buf += "*";
-          else buf += " ";
-        }
-        buf += "│\n";
+        buf += "  │" + grid[y].join("") + "│\n";
       }
       buf += "  └" + "─".repeat(W) + "┘\n";
+
       output.innerHTML = "";
       const pre = document.createElement("pre");
       pre.id = "game-canvas";
@@ -278,69 +318,128 @@ INTERESTS
     }
 
     function step() {
-      if (!alive) return;
-      dir = nextDir;
-      const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+      // Move attractor from held keys
+      if (keys.h) avx -= A_ACCEL;
+      if (keys.l) avx += A_ACCEL;
+      if (keys.k) avy -= A_ACCEL;
+      if (keys.j) avy += A_ACCEL;
 
-      // wall wrap (toroidal) for friendlier play, or die — let's die on wall for classic
-      if (head.x < 0 || head.x >= W || head.y < 0 || head.y >= H) {
-        gameOver();
-        return;
-      }
-      if (snake.some((s) => s.x === head.x && s.y === head.y)) {
-        gameOver();
-        return;
+      avx *= A_FRICTION;
+      avy *= A_FRICTION;
+
+      // Clamp speed
+      const spd = Math.sqrt(avx * avx + avy * avy);
+      if (spd > A_MAX_SPEED) {
+        avx = (avx / spd) * A_MAX_SPEED;
+        avy = (avy / spd) * A_MAX_SPEED;
       }
 
-      snake.unshift(head);
-      if (head.x === food.x && head.y === food.y) {
-        score += 10;
-        placeFood();
-      } else {
-        snake.pop();
+      ax += avx;
+      ay += avy;
+
+      // Soft bounds (bounce attractor)
+      if (ax < 1) { ax = 1; avx = Math.abs(avx) * 0.6; }
+      if (ax > W - 2) { ax = W - 2; avx = -Math.abs(avx) * 0.6; }
+      if (ay < 1) { ay = 1; avy = Math.abs(avy) * 0.6; }
+      if (ay > H - 2) { ay = H - 2; avy = -Math.abs(avy) * 0.6; }
+
+      // Update particles
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
+
+        const dx = ax - p.x;
+        const dy = ay - p.y;
+        const dist2 = dx * dx + dy * dy + 0.4; // avoid div0
+        const dist = Math.sqrt(dist2);
+
+        // Force strength (stronger when closer)
+        const strength = forceSign * (2.8 / dist2);
+
+        p.vx += (dx / dist) * strength;
+        p.vy += (dy / dist) * strength;
+
+        // Mild damping + slight tangential swirl for nicer orbits
+        p.vx *= 0.965;
+        p.vy *= 0.965;
+        p.vx += -dy * 0.012 * forceSign; // swirl
+        p.vy +=  dx * 0.012 * forceSign;
+
+        p.x += p.vx;
+        p.y += p.vy;
+
+        // Toroidal wrap
+        if (p.x < 0) p.x += W;
+        if (p.x >= W) p.x -= W;
+        if (p.y < 0) p.y += H;
+        if (p.y >= H) p.y -= H;
+
+        p.life--;
+        if (p.life <= 0 || Math.abs(p.vx) + Math.abs(p.vy) < 0.02) {
+          particles[i] = spawnParticle();
+        }
       }
+
       draw();
     }
 
-    function gameOver() {
-      alive = false;
-      clearInterval(tick);
-      state.screen = "gameover";
-      println();
-      println(`  GAME OVER  ·  score ${score}`);
-      println("  Press [r] to retry  ·  [b] or [q] for menu");
-    }
-
-    // input handler for game
+    // Input
     state.game = {
       onKey(e) {
         const k = e.key.toLowerCase();
-        if (k === "q" || k === "escape") {
+
+        if (k === "q" || k === "escape" || k === "b") {
           clearInterval(tick);
           showMenu();
           return;
         }
-        if (state.screen === "gameover") {
-          if (k === "r") {
-            clearInterval(tick);
-            startSnake();
-          } else if (k === "b" || k === "q") {
-            showMenu();
-          }
+
+        if (k === " " || k === "spacebar") {
+          e.preventDefault();
+          forceSign *= -1;
           return;
         }
 
-        // prevent reverse
-        if ((k === "h" || k === "a" || k === "arrowleft") && dir.x !== 1) nextDir = { x: -1, y: 0 };
-        else if ((k === "l" || k === "d" || k === "arrowright") && dir.x !== -1) nextDir = { x: 1, y: 0 };
-        else if ((k === "k" || k === "w" || k === "arrowup") && dir.y !== 1) nextDir = { x: 0, y: -1 };
-        else if ((k === "j" || k === "s" || k === "arrowdown") && dir.y !== -1) nextDir = { x: 0, y: 1 };
+        if (k === "r") {
+          for (let i = 0; i < particles.length; i++) {
+            particles[i] = spawnParticle();
+          }
+          ax = W / 2;
+          ay = H / 2;
+          avx = avy = 0;
+          return;
+        }
+
+        // Direction keys (also support wasd / arrows)
+        if (k === "h" || k === "a" || k === "arrowleft") keys.h = true;
+        if (k === "l" || k === "d" || k === "arrowright") keys.l = true;
+        if (k === "k" || k === "w" || k === "arrowup") keys.k = true;
+        if (k === "j" || k === "s" || k === "arrowdown") keys.j = true;
+      },
+      onKeyUp(e) {
+        const k = e.key.toLowerCase();
+        if (k === "h" || k === "a" || k === "arrowleft") keys.h = false;
+        if (k === "l" || k === "d" || k === "arrowright") keys.l = false;
+        if (k === "k" || k === "w" || k === "arrowup") keys.k = false;
+        if (k === "j" || k === "s" || k === "arrowdown") keys.j = false;
       },
     };
 
-    placeFood();
+    // Also listen for keyup
+    const keyupHandler = (e) => {
+      if (state.screen === "visual" && state.game && state.game.onKeyUp) {
+        state.game.onKeyUp(e);
+      }
+    };
+    document.addEventListener("keyup", keyupHandler);
+
+    // Store cleanup so we can remove the listener later if needed
+    state.game.cleanup = () => {
+      document.removeEventListener("keyup", keyupHandler);
+      clearInterval(tick);
+    };
+
     draw();
-    tick = setInterval(step, 140);
+    tick = setInterval(step, 50); // ~20 fps, smooth enough
   }
 
   // ========== GLOBAL KEY HANDLER ==========
@@ -350,8 +449,9 @@ INTERESTS
     const key = e.key.toLowerCase();
 
     // Global back / quit
-    if (key === "b" && (state.screen === "resume" || state.screen === "contact" || state.screen === "fun" || state.screen === "gameover")) {
+    if (key === "b" && (state.screen === "resume" || state.screen === "contact" || state.screen === "fun" || state.screen === "visual")) {
       e.preventDefault();
+      if (state.game && state.game.cleanup) state.game.cleanup();
       showMenu();
       return;
     }
@@ -381,13 +481,13 @@ INTERESTS
     }
 
     if (state.screen === "fun") {
-      // any key starts the game
+      // any key starts the visual
       e.preventDefault();
-      startSnake();
+      startField();
       return;
     }
 
-    if (state.screen === "game" || state.screen === "gameover") {
+    if (state.screen === "visual") {
       if (state.game && state.game.onKey) state.game.onKey(e);
       e.preventDefault();
       return;

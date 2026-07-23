@@ -9,7 +9,7 @@ A minimalist TUI-inspired personal resume website.
 - Three main sections:
   1. **Resume / CV** – clean text rendering of professional experience
   2. **Contact** – name + email
-  3. **Fun** – Snake game controlled with classic **vim motions** (`h j k l`)
+  3. **Fun** – Pure visual **particle field**. Move an attractor/repeller with classic **vim motions** (`h j k l`). No score, no goal — just swirling patterns.
 - Smooth typewriter transitions and subtle CRT scanlines
 
 ## Local development
@@ -39,16 +39,17 @@ Because the repo is currently private, you may need to make it public or use Git
 
 ## Controls cheat-sheet
 
-| Key        | Action                  |
-|------------|-------------------------|
-| `j` / `↓`  | Next menu item          |
-| `k` / `↑`  | Previous menu item      |
-| `1` `2` `3`| Jump to section         |
-| `Enter`    | Select                  |
-| `b`        | Back to menu            |
-| `q` / `Esc`| Quit (or exit game)     |
-| `h j k l`  | Move in the Snake game  |
-| `r`        | Retry after game over   |
+| Key          | Action                              |
+|--------------|-------------------------------------|
+| `j` / `↓`    | Next menu item                      |
+| `k` / `↑`    | Previous menu item                  |
+| `1` `2` `3`  | Jump to section                     |
+| `Enter`      | Select                              |
+| `b`          | Back to menu                        |
+| `q` / `Esc`  | Quit / exit visual                  |
+| `h j k l`    | Move the attractor (particle field) |
+| `space`      | Toggle attract ↔ repel              |
+| `r`          | Reset particles + center focus      |
 
 ---
 
