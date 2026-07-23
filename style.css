@@ -1,0 +1,170 @@
+:root {
+  --bg: #0a0a0a;
+  --fg: #33ff66;
+  --fg-dim: #1a9940;
+  --accent: #00ff9f;
+  --error: #ff5555;
+  --warn: #ffaa00;
+  --font: "IBM Plex Mono", "Cascadia Code", "Fira Code", "Consolas", monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  background: #000;
+  overflow: hidden;
+  font-family: var(--font);
+}
+
+#crt {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+#terminal {
+  width: min(920px, 95vw);
+  height: min(640px, 90vh);
+  background: #050505;
+  border: 2px solid #1a3a1a;
+  border-radius: 6px;
+  box-shadow:
+    0 0 0 1px #0f2a0f,
+    0 0 40px rgba(0, 255, 100, 0.08),
+    inset 0 0 60px rgba(0, 40, 0, 0.3);
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+#output {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  color: var(--fg);
+  font-size: 14px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  scrollbar-width: thin;
+  scrollbar-color: var(--fg-dim) transparent;
+}
+
+#output::-webkit-scrollbar {
+  width: 6px;
+}
+#output::-webkit-scrollbar-thumb {
+  background: var(--fg-dim);
+  border-radius: 3px;
+}
+
+#input-line {
+  margin-top: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--fg);
+  font-size: 14px;
+  min-height: 1.4em;
+}
+
+#prompt {
+  color: var(--accent);
+  user-select: none;
+}
+
+#cursor {
+  animation: blink 1.05s step-end infinite;
+  color: var(--fg);
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* CRT effects */
+#scanlines {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.12) 2px,
+    rgba(0, 0, 0, 0.12) 4px
+  );
+  z-index: 10;
+}
+
+#crt::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.45) 100%);
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Subtle glow on text */
+#output span.glow {
+  text-shadow: 0 0 6px currentColor;
+}
+
+/* Menu highlight */
+.menu-item {
+  cursor: pointer;
+  padding: 2px 0;
+}
+.menu-item.selected {
+  background: rgba(0, 255, 100, 0.12);
+  color: #fff;
+}
+.menu-item:hover {
+  background: rgba(0, 255, 100, 0.08);
+}
+
+/* Resume specific */
+.resume-section {
+  margin-bottom: 1.1em;
+}
+.resume-h {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Game area */
+#game-canvas {
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.1;
+  letter-spacing: 0.5px;
+  color: var(--fg);
+  white-space: pre;
+  user-select: none;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  #terminal {
+    height: 95vh;
+    padding: 0.8rem 1rem;
+    border-radius: 0;
+  }
+  #output {
+    font-size: 13px;
+  }
+}
