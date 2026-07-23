@@ -208,7 +208,7 @@ INTERESTS
     println();
     await typeText("  Name:    Matt\n", 12);
     await typeText("  Handle:  citizenanalog / m_sha256\n", 10);
-    await typeText("  Email:   matt@example.com   ← update this\n\n", 12);
+    await typeText("  Email:   matthew.t.sharpe@gmail.com\n\n", 12);
     await typeText("  GitHub:  https://github.com/citizenanalog\n\n", 10);
     println("  Prefer email for professional inquiries.");
     println();
