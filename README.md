@@ -9,7 +9,7 @@ A minimalist TUI-inspired personal resume website.
 - Three main sections:
   1. **Resume / CV** – clean text rendering of professional experience
   2. **Contact** – name + email
-  3. **Fun** – Pure visual **particle field**. Move an attractor/repeller with classic **vim motions** (`h j k l`). No score, no goal — just swirling patterns.
+  3. **Fun** – **Photon field**. A canvas particle playground: drag an attractor/repeller with classic **vim motions** (`h j k l`), then fire glowing laser bolts that ricochet off the walls and vaporize particles into spark bursts. Hold `space` too long and the laser overheats. No score, no goal — just light.
 - Smooth typewriter transitions and subtle CRT scanlines
 
 ## Local development
@@ -47,9 +47,10 @@ Because the repo is currently private, you may need to make it public or use Git
 | `Enter`      | Select                              |
 | `b`          | Back to menu                        |
 | `q` / `Esc`  | Quit / exit visual                  |
-| `h j k l`    | Move the attractor (particle field) |
-| `space`      | Toggle attract ↔ repel              |
-| `r`          | Reset particles + center focus      |
+| `h j k l`    | Move the diode (photon field)       |
+| `space`      | Fire laser (hold for auto-fire)     |
+| `f`          | Toggle attract ↔ repel              |
+| `r`          | Reset field + center diode          |
 
 ---
 

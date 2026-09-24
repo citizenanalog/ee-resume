@@ -96,7 +96,7 @@
   const menuItems = [
     { key: "1", label: "View Resume / CV", action: showResume },
     { key: "2", label: "Contact", action: showContact },
-    { key: "3", label: "Fun (particle field)", action: showFun },
+    { key: "3", label: "Fun (photon field)", action: showFun },
   ];
 
   function showMenu() {
@@ -216,21 +216,22 @@ INTERESTS
   }
 
   // ========== FUN / VISUAL ==========
-  // Pure visual particle field controlled by vim motions
+  // Photon field: attract/repel particle physics + laser bolts, rendered on canvas
   function showFun() {
     state.screen = "fun";
     clear();
     promptEl.style.display = "none";
     cursorEl.style.display = "none";
 
-    println("─── FUN  ·  particle field ───────────────────");
+    println("─── FUN  ·  photon field ─────────────────────");
     println();
-    println("  A pure visual playground.");
-    println("  Move the attractor with vim motions.");
+    println("  A pure visual playground. Now with lasers.");
+    println("  Drag the field with vim motions. Shoot it apart.");
     println();
-    println("  h j k l   (or arrows)  →  move the focus");
-    println("  space                 →  toggle attract / repel");
-    println("  r                     →  reset particles");
+    println("  h j k l   (or arrows)  →  move the diode");
+    println("  space                 →  fire laser (hold for auto)");
+    println("  f                     →  toggle attract / repel");
+    println("  r                     →  reset field");
     println("  q / esc / b           →  back to menu");
     println();
     println("  Press any key to begin...");
@@ -240,137 +241,251 @@ INTERESTS
     state.screen = "visual";
     clear();
 
-    const W = 42;
-    const H = 18;
-    const NUM = 55;
+    const canvas = document.createElement("canvas");
+    canvas.id = "game-canvas";
+    output.appendChild(canvas);
+    const ctx = canvas.getContext("2d");
 
-    // Attractor
-    let ax = W / 2;
-    let ay = H / 2;
+    // ----- state (declared before resize() references them) -----
+    let W = 0;
+    let H = 0;
+
+    // Diode (attractor / laser emitter)
+    let ax = 0;
+    let ay = 0;
     let avx = 0;
     let avy = 0;
-    const A_ACCEL = 0.55;
-    const A_FRICTION = 0.82;
-    const A_MAX_SPEED = 1.8;
+    let angle = 0; // facing = last movement direction
+
+    const A_ACCEL = 900;      // px/s^2
+    const A_FRICTION = 6;     // exponential decay per second
+    const A_MAX_SPEED = 420;  // px/s
+    const DIODE_MARGIN = 14;  // soft bounds for the diode
 
     // Force mode: +1 attract, -1 repel
     let forceSign = 1;
 
     // Particles
+    const NUM = 70;
     const particles = [];
-    const glyphs = ["·", ".", ":", "*", "o", "O", "+", "×"];
 
-    function spawnParticle() {
-      return {
-        x: Math.random() * W,
-        y: Math.random() * H,
-        vx: (Math.random() - 0.5) * 1.2,
-        vy: (Math.random() - 0.5) * 1.2,
-        life: 40 + Math.random() * 80,
-        g: glyphs[Math.floor(Math.random() * glyphs.length)],
-      };
-    }
+    // Laser bolts
+    const bolts = [];
+    const BOLT_SPEED = 950;     // px/s
+    const BOLT_BOUNCES = 4;
+    const BOLT_FADE = 0.15;     // seconds to fade out after last bounce
+    const MAX_BOLTS = 20;
 
-    for (let i = 0; i < NUM; i++) particles.push(spawnParticle());
+    // Sparks (vaporization debris)
+    const sparks = [];
+    const MAX_SPARKS = 300;
+
+    // Laser heat
+    let heat = 0;
+    let overheated = false;
+    let fireCooldown = 0;
+    let firing = false;
+    const FIRE_COOLDOWN = 0.11; // seconds between shots while held
+    const HEAT_PER_SHOT = 14;
+    const HEAT_DECAY = 34;      // per second
+    const HEAT_MAX = 100;
+    const HEAT_UNLOCK = 35;
 
     // Key state for continuous movement
     const keys = { h: false, j: false, k: false, l: false };
 
-    let tick = null;
+    let rafId = null;
+    let last = 0;
+    let flashT = 0; // overheat flash timer
 
-    function draw() {
-      // Build empty grid
-      const grid = Array.from({ length: H }, () => Array(W).fill(" "));
-
-      // Place particles (last one wins if overlap)
-      for (const p of particles) {
-        const px = Math.floor(p.x);
-        const py = Math.floor(p.y);
-        if (px >= 0 && px < W && py >= 0 && py < H) {
-          // Choose glyph by speed for a bit of life
-          const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
-          let ch = p.g;
-          if (speed > 1.4) ch = "@";
-          else if (speed > 0.9) ch = "O";
-          else if (speed > 0.5) ch = "o";
-          else if (speed > 0.25) ch = "*";
-          grid[py][px] = ch;
-        }
-      }
-
-      // Place attractor (always on top)
-      const tax = Math.floor(ax);
-      const tay = Math.floor(ay);
-      if (tax >= 0 && tax < W && tay >= 0 && tay < H) {
-        grid[tay][tax] = forceSign > 0 ? "◉" : "◎";
-      }
-
-      // Render
-      let buf = "";
-      const mode = forceSign > 0 ? "ATTRACT" : "REPEL ";
-      buf += `  ${mode}   hjkl move focus · space flip · r reset · q quit\n`;
-      buf += "  ┌" + "─".repeat(W) + "┐\n";
-      for (let y = 0; y < H; y++) {
-        buf += "  │" + grid[y].join("") + "│\n";
-      }
-      buf += "  └" + "─".repeat(W) + "┘\n";
-
-      output.innerHTML = "";
-      const pre = document.createElement("pre");
-      pre.id = "game-canvas";
-      pre.textContent = buf;
-      output.appendChild(pre);
+    // ----- canvas sizing (DPR-aware, world coords = CSS px) -----
+    function resize() {
+      const dpr = window.devicePixelRatio || 1;
+      W = output.clientWidth;
+      H = output.clientHeight;
+      canvas.width = Math.max(1, Math.floor(W * dpr));
+      canvas.height = Math.max(1, Math.floor(H * dpr));
+      canvas.style.width = W + "px";
+      canvas.style.height = H + "px";
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      // keep the diode inside the new bounds
+      ax = Math.min(Math.max(ax, DIODE_MARGIN), W - DIODE_MARGIN);
+      ay = Math.min(Math.max(ay, DIODE_MARGIN), H - DIODE_MARGIN);
     }
 
-    function step() {
-      // Move attractor from held keys
-      if (keys.h) avx -= A_ACCEL;
-      if (keys.l) avx += A_ACCEL;
-      if (keys.k) avy -= A_ACCEL;
-      if (keys.j) avy += A_ACCEL;
+    // ----- glow sprites (pre-rendered radial gradients) -----
+    function makeGlow(rgb) {
+      const s = 64;
+      const c = document.createElement("canvas");
+      c.width = s;
+      c.height = s;
+      const g = c.getContext("2d");
+      const grad = g.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+      grad.addColorStop(0, `rgba(${rgb},1)`);
+      grad.addColorStop(0.35, `rgba(${rgb},0.45)`);
+      grad.addColorStop(1, `rgba(${rgb},0)`);
+      g.fillStyle = grad;
+      g.fillRect(0, 0, s, s);
+      return c;
+    }
 
-      avx *= A_FRICTION;
-      avy *= A_FRICTION;
+    const glowGreen = makeGlow("51,255,102");
+    const glowCyan = makeGlow("0,229,255");
+    const glowRed = makeGlow("255,60,60");
+    const glowWhite = makeGlow("255,240,220");
+    const glowOrange = makeGlow("255,150,40");
 
-      // Clamp speed
-      const spd = Math.sqrt(avx * avx + avy * avy);
+    // ----- spawning / reset -----
+    function spawnParticle() {
+      const a = Math.random() * Math.PI * 2;
+      const sp = 30 + Math.random() * 50;
+      return {
+        x: Math.random() * W,
+        y: Math.random() * H,
+        vx: Math.cos(a) * sp,
+        vy: Math.sin(a) * sp,
+        r: 1.5 + Math.random(),
+        life: 4 + Math.random() * 8,
+      };
+    }
+
+    function resetField() {
+      particles.length = 0;
+      for (let i = 0; i < NUM; i++) particles.push(spawnParticle());
+      bolts.length = 0;
+      sparks.length = 0;
+      heat = 0;
+      overheated = false;
+      fireCooldown = 0;
+      firing = false;
+      ax = W / 2;
+      ay = H / 2;
+      avx = avy = 0;
+      angle = 0;
+    }
+
+    // ----- laser -----
+    function fire() {
+      if (overheated) return;
+      const mx = ax + Math.cos(angle) * 12;
+      const my = ay + Math.sin(angle) * 12;
+      bolts.push({
+        x: mx,
+        y: my,
+        px: mx,
+        py: my,
+        vx: Math.cos(angle) * BOLT_SPEED,
+        vy: Math.sin(angle) * BOLT_SPEED,
+        bounces: BOLT_BOUNCES,
+        fade: 1, // 1 = alive, < 1 = fading out
+      });
+      if (bolts.length > MAX_BOLTS) bolts.shift();
+
+      // muzzle flash
+      for (let k = 0; k < 3; k++) {
+        const a = angle + (Math.random() - 0.5) * 0.8;
+        const sp = 80 + Math.random() * 120;
+        const life = 0.15 + Math.random() * 0.15;
+        sparks.push({ x: mx, y: my, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life, maxLife: life });
+      }
+
+      heat = Math.min(HEAT_MAX, heat + HEAT_PER_SHOT);
+      if (heat >= HEAT_MAX) overheated = true;
+    }
+
+    // Segment-vs-circle test: at 950 px/s a bolt moves ~16px/frame,
+    // so point tests would tunnel straight through particles.
+    function segCircle(x1, y1, x2, y2, cx, cy, r) {
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const len2 = dx * dx + dy * dy;
+      if (len2 === 0) {
+        const ddx = cx - x1;
+        const ddy = cy - y1;
+        return ddx * ddx + ddy * ddy <= r * r;
+      }
+      let t = ((cx - x1) * dx + (cy - y1) * dy) / len2;
+      t = Math.max(0, Math.min(1, t));
+      const ddx = cx - (x1 + t * dx);
+      const ddy = cy - (y1 + t * dy);
+      return ddx * ddx + ddy * ddy <= r * r;
+    }
+
+    function vaporize(idx) {
+      const p = particles[idx];
+      particles.splice(idx, 1);
+      const n = 10 + Math.floor(Math.random() * 5);
+      for (let k = 0; k < n; k++) {
+        const a = Math.random() * Math.PI * 2;
+        const sp = 60 + Math.random() * 200;
+        const life = 0.3 + Math.random() * 0.4;
+        sparks.push({ x: p.x, y: p.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life, maxLife: life });
+      }
+      while (sparks.length > MAX_SPARKS) sparks.shift();
+      particles.push(spawnParticle()); // keep field density
+    }
+
+    // ----- physics updates (dt in seconds) -----
+    function updateHeat(dt) {
+      heat = Math.max(0, heat - HEAT_DECAY * dt);
+      if (overheated && heat <= HEAT_UNLOCK) overheated = false;
+      if (fireCooldown > 0) fireCooldown -= dt;
+      if (firing && !overheated && fireCooldown <= 0) {
+        fire();
+        fireCooldown = FIRE_COOLDOWN;
+      }
+    }
+
+    function updateDiode(dt) {
+      if (keys.h) avx -= A_ACCEL * dt;
+      if (keys.l) avx += A_ACCEL * dt;
+      if (keys.k) avy -= A_ACCEL * dt;
+      if (keys.j) avy += A_ACCEL * dt;
+
+      const f = Math.exp(-A_FRICTION * dt);
+      avx *= f;
+      avy *= f;
+
+      const spd = Math.hypot(avx, avy);
       if (spd > A_MAX_SPEED) {
         avx = (avx / spd) * A_MAX_SPEED;
         avy = (avy / spd) * A_MAX_SPEED;
       }
 
-      ax += avx;
-      ay += avy;
+      ax += avx * dt;
+      ay += avy * dt;
 
-      // Soft bounds (bounce attractor)
-      if (ax < 1) { ax = 1; avx = Math.abs(avx) * 0.6; }
-      if (ax > W - 2) { ax = W - 2; avx = -Math.abs(avx) * 0.6; }
-      if (ay < 1) { ay = 1; avy = Math.abs(avy) * 0.6; }
-      if (ay > H - 2) { ay = H - 2; avy = -Math.abs(avy) * 0.6; }
+      // Soft bounds (bounce diode)
+      if (ax < DIODE_MARGIN) { ax = DIODE_MARGIN; avx = Math.abs(avx) * 0.6; }
+      if (ax > W - DIODE_MARGIN) { ax = W - DIODE_MARGIN; avx = -Math.abs(avx) * 0.6; }
+      if (ay < DIODE_MARGIN) { ay = DIODE_MARGIN; avy = Math.abs(avy) * 0.6; }
+      if (ay > H - DIODE_MARGIN) { ay = H - DIODE_MARGIN; avy = -Math.abs(avy) * 0.6; }
 
-      // Update particles
+      if (spd > 20) angle = Math.atan2(avy, avx);
+    }
+
+    function updateParticles(dt) {
       for (let i = 0; i < particles.length; i++) {
         const p = particles[i];
 
         const dx = ax - p.x;
         const dy = ay - p.y;
-        const dist2 = dx * dx + dy * dy + 0.4; // avoid div0
+        const dist2 = dx * dx + dy * dy + 400; // softened close-range
         const dist = Math.sqrt(dist2);
 
-        // Force strength (stronger when closer)
-        const strength = forceSign * (2.8 / dist2);
+        // Radial pull/push + tangential swirl
+        const radial = forceSign * Math.min(1200, 60000 / dist2);
+        const swirl = forceSign * Math.min(200, 0.5 * dist);
 
-        p.vx += (dx / dist) * strength;
-        p.vy += (dy / dist) * strength;
+        p.vx += ((dx / dist) * radial + (-dy / dist) * swirl) * dt;
+        p.vy += ((dy / dist) * radial + (dx / dist) * swirl) * dt;
 
-        // Mild damping + slight tangential swirl for nicer orbits
-        p.vx *= 0.965;
-        p.vy *= 0.965;
-        p.vx += -dy * 0.012 * forceSign; // swirl
-        p.vy +=  dx * 0.012 * forceSign;
+        const damp = Math.exp(-0.8 * dt);
+        p.vx *= damp;
+        p.vy *= damp;
 
-        p.x += p.vx;
-        p.y += p.vy;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
 
         // Toroidal wrap
         if (p.x < 0) p.x += W;
@@ -378,39 +493,210 @@ INTERESTS
         if (p.y < 0) p.y += H;
         if (p.y >= H) p.y -= H;
 
-        p.life--;
-        if (p.life <= 0 || Math.abs(p.vx) + Math.abs(p.vy) < 0.02) {
+        p.life -= dt;
+        if (p.life <= 0 || Math.hypot(p.vx, p.vy) < 2) {
           particles[i] = spawnParticle();
         }
       }
-
-      draw();
     }
 
-    // Input
+    function updateBolts(dt) {
+      for (let i = bolts.length - 1; i >= 0; i--) {
+        const b = bolts[i];
+        b.px = b.x;
+        b.py = b.y;
+        b.x += b.vx * dt;
+        b.y += b.vy * dt;
+
+        if (b.fade < 1) {
+          b.fade -= dt / BOLT_FADE;
+          if (b.fade <= 0) bolts.splice(i, 1);
+          continue;
+        }
+
+        // Wall bounce
+        let bounced = false;
+        if (b.x < 0) { b.x = -b.x; b.vx = Math.abs(b.vx); bounced = true; }
+        else if (b.x > W) { b.x = 2 * W - b.x; b.vx = -Math.abs(b.vx); bounced = true; }
+        if (b.y < 0) { b.y = -b.y; b.vy = Math.abs(b.vy); bounced = true; }
+        else if (b.y > H) { b.y = 2 * H - b.y; b.vy = -Math.abs(b.vy); bounced = true; }
+        if (bounced) {
+          b.bounces--;
+          if (b.bounces <= 0) b.fade = 0.999; // start fading, keep moving
+        }
+
+        // Vaporize particles along the bolt's swept segment
+        for (let j = particles.length - 1; j >= 0; j--) {
+          const p = particles[j];
+          if (segCircle(b.px, b.py, b.x, b.y, p.x, p.y, p.r + 1.5)) {
+            vaporize(j);
+          }
+        }
+      }
+    }
+
+    function updateSparks(dt) {
+      for (let i = sparks.length - 1; i >= 0; i--) {
+        const s = sparks[i];
+        s.life -= dt;
+        if (s.life <= 0) {
+          sparks.splice(i, 1);
+          continue;
+        }
+        s.x += s.vx * dt;
+        s.y += s.vy * dt;
+        const damp = Math.exp(-2.5 * dt);
+        s.vx *= damp;
+        s.vy *= damp;
+      }
+    }
+
+    // ----- rendering -----
+    function draw(dt) {
+      // Motion trails instead of a hard clear
+      ctx.globalCompositeOperation = "source-over";
+      ctx.fillStyle = "rgba(5,5,5,0.22)";
+      ctx.fillRect(0, 0, W, H);
+
+      // Additive blending for everything glowing
+      ctx.globalCompositeOperation = "lighter";
+
+      // Particles: green phosphor, brighter/bigger when fast
+      for (const p of particles) {
+        const speed = Math.hypot(p.vx, p.vy);
+        const glowR = 6 + Math.min(10, speed * 0.05);
+        ctx.globalAlpha = 0.5 + Math.min(0.5, speed * 0.004);
+        ctx.drawImage(glowGreen, p.x - glowR, p.y - glowR, glowR * 2, glowR * 2);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = "#baffd0";
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Sparks: white-hot fading to orange
+      for (const s of sparks) {
+        const t = s.life / s.maxLife;
+        const glowR = 5 + 6 * t;
+        ctx.globalAlpha = t;
+        ctx.drawImage(t > 0.5 ? glowWhite : glowOrange, s.x - glowR, s.y - glowR, glowR * 2, glowR * 2);
+      }
+      ctx.globalAlpha = 1;
+
+      // Bolts: wide translucent red + bright core, with bloom
+      for (const b of bolts) {
+        const alpha = Math.max(0, Math.min(1, b.fade));
+        ctx.save();
+        ctx.shadowColor = "rgba(255,60,60,0.9)";
+        ctx.shadowBlur = 12;
+        ctx.strokeStyle = `rgba(255,40,40,${0.35 * alpha})`;
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.moveTo(b.px, b.py);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+        ctx.strokeStyle = `rgba(255,120,120,${0.95 * alpha})`;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Diode: glow + emitter line + hot core
+      const diodeGlow = forceSign > 0 ? glowGreen : glowCyan;
+      ctx.globalAlpha = 0.9;
+      ctx.drawImage(diodeGlow, ax - 16, ay - 16, 32, 32);
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = forceSign > 0 ? "#aaffcc" : "#aaffee";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(ax, ay);
+      ctx.lineTo(ax + Math.cos(angle) * 12, ay + Math.sin(angle) * 12);
+      ctx.stroke();
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.arc(ax, ay, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Overheat: red flash around the diode
+      if (overheated) {
+        flashT += dt;
+        if (Math.floor(flashT * 8) % 2 === 0) {
+          ctx.globalAlpha = 0.8;
+          ctx.drawImage(glowRed, ax - 18, ay - 18, 36, 36);
+          ctx.globalAlpha = 1;
+        }
+      }
+
+      drawHud();
+    }
+
+    function drawHud() {
+      ctx.font = "13px 'IBM Plex Mono', monospace";
+      ctx.textBaseline = "top";
+
+      // Mode indicator
+      ctx.fillStyle = forceSign > 0 ? "#33ff66" : "#00e5ff";
+      ctx.fillText(forceSign > 0 ? "ATTRACT" : "REPEL", 12, 10);
+
+      // Heat bar
+      const bw = 140;
+      const bh = 8;
+      const bx = W - bw - 12;
+      const by = 12;
+      ctx.strokeStyle = "rgba(255,80,80,0.5)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(bx + 0.5, by + 0.5, bw, bh);
+      const frac = heat / HEAT_MAX;
+      const flash = overheated && Math.floor(performance.now() / 120) % 2 === 0;
+      ctx.fillStyle = flash ? "#ff8888" : "#ff3c3c";
+      ctx.fillRect(bx + 1, by + 1, Math.max(0, (bw - 2) * frac), bh - 2);
+      ctx.fillStyle = "rgba(255,120,120,0.8)";
+      ctx.fillText(overheated ? "LASER OVERHEAT" : "LASER", bx, by + bh + 4);
+
+      // Controls hint
+      ctx.fillStyle = "rgba(51,255,102,0.4)";
+      ctx.fillText("hjkl move · space fire · f flip field · r reset · q quit", 12, H - 22);
+    }
+
+    // ----- main loop -----
+    function frame(now) {
+      const dt = Math.min((now - last) / 1000, 0.05); // clamp: no tunneling after tab-switch
+      last = now;
+
+      updateHeat(dt);
+      updateDiode(dt);
+      updateParticles(dt);
+      updateBolts(dt);
+      updateSparks(dt);
+      draw(dt);
+
+      rafId = requestAnimationFrame(frame);
+    }
+
+    // ----- input -----
     state.game = {
       onKey(e) {
         const k = e.key.toLowerCase();
 
         if (k === "q" || k === "escape" || k === "b") {
-          clearInterval(tick);
+          cleanup();
           showMenu();
           return;
         }
 
         if (k === " " || k === "spacebar") {
           e.preventDefault();
+          firing = true;
+          return;
+        }
+
+        if (k === "f") {
           forceSign *= -1;
           return;
         }
 
         if (k === "r") {
-          for (let i = 0; i < particles.length; i++) {
-            particles[i] = spawnParticle();
-          }
-          ax = W / 2;
-          ay = H / 2;
-          avx = avy = 0;
+          resetField();
           return;
         }
 
@@ -422,6 +708,7 @@ INTERESTS
       },
       onKeyUp(e) {
         const k = e.key.toLowerCase();
+        if (k === " " || k === "spacebar") firing = false;
         if (k === "h" || k === "a" || k === "arrowleft") keys.h = false;
         if (k === "l" || k === "d" || k === "arrowright") keys.l = false;
         if (k === "k" || k === "w" || k === "arrowup") keys.k = false;
@@ -429,22 +716,32 @@ INTERESTS
       },
     };
 
-    // Also listen for keyup
     const keyupHandler = (e) => {
       if (state.screen === "visual" && state.game && state.game.onKeyUp) {
         state.game.onKeyUp(e);
       }
     };
+    const resizeHandler = () => resize();
     document.addEventListener("keyup", keyupHandler);
+    window.addEventListener("resize", resizeHandler);
 
-    // Store cleanup so we can remove the listener later if needed
-    state.game.cleanup = () => {
+    function cleanup() {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      rafId = null;
+      firing = false;
       document.removeEventListener("keyup", keyupHandler);
-      clearInterval(tick);
-    };
+      window.removeEventListener("resize", resizeHandler);
+    }
 
-    draw();
-    tick = setInterval(step, 50); // ~20 fps, smooth enough
+    state.game.cleanup = cleanup;
+
+    // ----- init -----
+    resize();
+    resetField();
+    ctx.fillStyle = "#050505";
+    ctx.fillRect(0, 0, W, H);
+    last = performance.now();
+    rafId = requestAnimationFrame(frame);
   }
 
   // ========== GLOBAL KEY HANDLER ==========

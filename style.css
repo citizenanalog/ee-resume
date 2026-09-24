@@ -146,15 +146,11 @@ html, body {
   font-weight: 600;
 }
 
-/* Game area */
+/* Game area (photon field canvas) */
 #game-canvas {
-  font-family: var(--font);
-  font-size: 15px;
-  line-height: 1.1;
-  letter-spacing: 0.5px;
-  color: var(--fg);
-  white-space: pre;
+  display: block;
   user-select: none;
+  cursor: crosshair;
 }
 
 /* Responsive */
